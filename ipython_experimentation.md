@@ -24,6 +24,7 @@ Out[14]: '{"expand":"renderedFields,names,schema,operations,editmeta,changelog,v
 *snip*
 
 # DU project sprint 5 ID is 86 (see in the jql query param last # is 86)
+# Ideally allow user to provide sprint name vs sprint ID, seems non-trivial which is annoying
 
 In [23]: resp = requests.get('https://kbase-jira.atlassian.net/rest/api/3/search
     ...: ?maxResults=1000&jql=Sprint%20%3D%2086', headers={'Authorization': f'Ba
