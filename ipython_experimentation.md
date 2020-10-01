@@ -269,7 +269,20 @@ DATAUP-216 (None, None)
 DATAUP-214 ('2020-09-28T10:17:22.913-0700', '2020-09-30T13:57:36.022-0700')
 DATAUP-207 ('2020-09-23T13:20:00.260-0700', '2020-09-28T09:37:46.147-0700')
 
+# summary
 
-
+In [141]: for issue in issues['issues']:
+     ...:     fields = issue['fields']
+     ...:     expec = fields.get('customfield_11127') or ''
+     ...:     actual = fields.get('customfield_11164') or ''
+     ...:     proc, done = get_proc_to_done(changelog[issue['key']])
+     ...:     proc = proc or ''
+     ...:     done = done or ''
+     ...:     print(f"{issue['key']}\t{expec}\t{actual}\t{proc}\t{done}")
+     ...:
+DATAUP-227
+DATAUP-216
+DATAUP-214	2.0	1.0	2020-09-28T10:17:22.913-0700	2020-09-30T13:57:36.022-0700
+DATAUP-207			2020-09-23T13:20:00.260-0700	2020-09-28T09:37:46.147-0700
 ```
 
