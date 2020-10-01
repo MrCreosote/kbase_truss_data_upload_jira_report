@@ -1,6 +1,6 @@
 # Notes on experimenting with the JIRA cloud API
 
-```
+```python
 In [1]: with open('/home/crushingismybusiness/.jira_cloud_token_gaprice_lbl_gov'
    ...: ) as f: 
    ...:     token = f.read().strip() 
