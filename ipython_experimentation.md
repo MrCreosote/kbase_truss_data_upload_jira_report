@@ -62,6 +62,10 @@ DATAUP-176
 DATAUP-128
 DATAUP-87
 
+# story point fields:
+# customfield_11164	Story points actual
+# customfield_11127	Story point estimate
+
 # need check and see if pull more records
 In [57]: resp = requests.get('https://kbase-jira.atlassian.net/rest/api/3/issue/
     ...: DATAUP-194/changelog?maxResults=1000', headers={'Authorization': f'Basi
