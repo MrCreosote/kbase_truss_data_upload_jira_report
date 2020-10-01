@@ -6,7 +6,6 @@ In [1]: with open('/home/crushingismybusiness/.jira_cloud_token_gaprice_lbl_gov'
    ...:     token = f.read().strip() 
    ...:
 
-
 In [3]: import requests
 
 In [4]: user = 'gaprice@lbl.gov'
@@ -63,6 +62,30 @@ DATAUP-176
 DATAUP-128
 DATAUP-87
 
+# need check and see if pull more records
+In [57]: resp = requests.get('https://kbase-jira.atlassian.net/rest/api/3/issue/
+    ...: DATAUP-194/changelog?maxResults=1000', headers={'Authorization': f'Basi
+    ...: c {authhdr}'})
+    ...:
+
+In [58]: j = resp.json()
+
+# j['total'] = 16
+
+# use IDs rather than strings in actual code, ids are in the item map
+In [59]: for change in j['values']:
+    ...:     for item in change['items']:
+    ...:         if item['field'] == 'status':
+    ...:             print(f"{change['created']}\t{item['fromString']}\t{item['t
+    ...: oString']}")
+    ...:
+2020-09-24T09:49:32.533-0700	To Do	In Progress
+2020-09-24T13:07:32.385-0700	In Progress	On Hold/Blocked
+2020-09-25T11:28:26.453-0700	On Hold/Blocked	In Progress
+2020-09-28T09:32:55.325-0700	In Progress	On Hold/Blocked
+2020-09-29T14:44:34.626-0700	On Hold/Blocked	Test/Feedback
+2020-09-29T15:01:50.643-0700	Test/Feedback	In Progress
+2020-09-30T16:03:01.492-0700	In Progress	Done
 
 ```
 
