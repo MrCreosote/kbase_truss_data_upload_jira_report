@@ -35,19 +35,23 @@ def load_config(cfgfile):
     return cfg
 
 
-def get_config(cfgfile):
+def get_user_pass(cfg):
     username = input('Enter your JIRA user name (typically an email address): ')
     token = getpass.getpass(
         f'Enter your JIRA API token. You can get one from {JIRA_API_TOKEN_URL}: ')
     check_creds(username, token)
     
-    cfg = ConfigParser(allow_no_value=True)
     cfg.add_section(SEC_CREDS)
     cfg.set(SEC_CREDS, '# The JIRA account username, often an email address.', None)
     cfg[SEC_CREDS][CFG_USERNAME] = username
     cfg.set(SEC_CREDS,
         '# An API token for the JIRA account, obtainable from ' + JIRA_API_TOKEN_URL, None)
     cfg[SEC_CREDS][CFG_API_TOKEN] = token
+
+
+def get_config(cfgfile):
+    cfg = ConfigParser(allow_no_value=True)
+    get_user_pass(cfg)
 
     with open(cfgfile, 'w') as f:
         cfg.write(f)
