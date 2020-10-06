@@ -36,6 +36,14 @@ RESULT_ID = 'id'
 RESULT_ISSUES = 'issues'
 RESULT_TOTAL = 'total'
 RESULT_KEY = 'key'
+RESULT_FIELDS = 'fields'
+FLD_STORY_POINT_ACTUAL = 'customfield_11164'
+FLD_STORY_POINT_EST = 'customfield_11127'
+
+DS_KEY = 'key'
+DS_STORT_POINT_ACTUAL = 'spa'
+DS_STORT_POINT_EST = 'spe'
+
 
 MAX_RESULTS = 10000
 
@@ -140,17 +148,15 @@ def get_config(cfgfile):
     return cfg
 
 
-def get_sprint_id(cfg):
-    board_id = int(cfg[SEC_JIRA][CFG_BOARD])
-
+def get_sprint_id(username, token, board_id):
     return get_jira_selection(
-        cfg[SEC_CREDS][CFG_USERNAME],
-        cfg[SEC_CREDS][CFG_API_TOKEN],
+        username,
+        token,
         f'{JIRA_URL}{JIRA_BOARDS}{board_id}{JIRA_SPRINT_SUFFIX}',
         'sprint')
 
 
-def get_ticket_keys(username, token, sprint_id):
+def get_tickets(username, token, sprint_id):
     # close to get_jira_selection but not enough that I want to DRY it up right now
     # need to pass in query params & collector for results
     headers = get_auth_headers(username, token)
@@ -173,10 +179,21 @@ def get_ticket_keys(username, token, sprint_id):
         not_complete = j[RESULT_TOTAL] > start_at
 
         for item in j[RESULT_ISSUES]:
-            keys.append(item[RESULT_KEY])
+            keys.append({DS_KEY: item[RESULT_KEY],
+                         DS_STORT_POINT_EST: item[RESULT_FIELDS].get(FLD_STORY_POINT_EST),
+                         DS_STORT_POINT_ACTUAL: item[RESULT_FIELDS].get(FLD_STORY_POINT_ACTUAL)
+            })
     # assumes all keys in sprint have the same prefix
     # may need simple adjustment if not
-    return sorted(keys, key=lambda k: int(k.split('-')[1]))
+    return sorted(keys, key=lambda k: int(k[DS_KEY].split('-')[1]))
+
+def get_ticket_data(username, token, tickets):
+    headers = get_auth_headers(username, token)
+    tickets2 = []
+    for t in tickets:
+        pass
+    return tickets2
+
 
 def main():
     cfgfile = Path(os.path.expanduser('~')) / CONFIG_FILE
@@ -189,11 +206,15 @@ def main():
         print(f'No configuration file found')
         cfg = get_config(cfgfile)
 
-    sprint_id = get_sprint_id(cfg)
-    keys = get_ticket_keys(cfg[SEC_CREDS][CFG_USERNAME], cfg[SEC_CREDS][CFG_API_TOKEN], sprint_id)
-    print(f'Found {len(keys)} tickets in sprint')
-
-    print(keys)
+    username = cfg[SEC_CREDS][CFG_USERNAME]
+    token = cfg[SEC_CREDS][CFG_API_TOKEN]
+    sprint_id = get_sprint_id(username, token, int(cfg[SEC_JIRA][CFG_BOARD]))
+    tickets = get_tickets(username, token, sprint_id)
+    print(f'Found {len(tickets)} tickets in sprint, fetching ticket history')
+    print(tickets)
+    tickets = get_ticket_data(username, token, tickets)
+    for t in tickets:
+        print(t)
 
 
 if __name__ == '__main__':
