@@ -24,13 +24,18 @@ JIRA_URL = 'https://kbase-jira.atlassian.net'
 JIRA_API_TOKEN_URL = 'https://confluence.atlassian.com/cloud/api-tokens-938839638.html'
 JIRA_MYSELF = '/rest/api/3/myself/'
 JIRA_BOARDS = '/rest/agile/1.0/board/'
+JIRA_SEARCH = '/rest/api/3/search/'
 JIRA_SPRINT_SUFFIX = '/sprint'
 QUERY_MAX_RESULTS = 'maxResults'
 QUERY_START_AT = 'startAt'
+QUERY_JQL = 'jql'
 RESULT_IS_LAST = 'isLast'
 RESULT_VALUES = 'values'
 RESULT_NAME = 'name'
 RESULT_ID = 'id'
+RESULT_ISSUES = 'issues'
+RESULT_TOTAL = 'total'
+RESULT_KEY = 'key'
 
 MAX_RESULTS = 10000
 
@@ -145,6 +150,32 @@ def get_sprint_id(cfg):
         'sprint')
 
 
+def get_ticket_keys(username, token, sprint_id):
+    # close to get_jira_selection but not enough that I want to DRY it up right now
+    # need to pass in query params & collector for results
+    headers = get_auth_headers(username, token)
+
+    not_complete = True
+    keys = []
+    start_at = 0
+    while not_complete:
+        resp = requests.get(
+            f'{JIRA_URL}{JIRA_SEARCH}',
+            params={QUERY_MAX_RESULTS: MAX_RESULTS,
+                    QUERY_START_AT: start_at,
+                    QUERY_JQL: f'sprint = {sprint_id}'
+                    },
+            headers=headers)
+        if not resp.ok:
+            raise ValueError(f'Failed to get JIRA tickets:\n{resp.text}')
+        j = resp.json()
+        start_at = start_at + MAX_RESULTS
+        not_complete = j[RESULT_TOTAL] > start_at
+
+        for item in j[RESULT_ISSUES]:
+            keys.append(item[RESULT_KEY])
+    return sorted(keys)
+
 def main():
     cfgfile = Path(os.path.expanduser('~')) / CONFIG_FILE
     if cfgfile.is_dir():
@@ -157,7 +188,8 @@ def main():
         cfg = get_config(cfgfile)
 
     sprint_id = get_sprint_id(cfg)
-    print(sprint_id)
+    keys = get_ticket_keys(cfg[SEC_CREDS][CFG_USERNAME], cfg[SEC_CREDS][CFG_API_TOKEN], sprint_id)
+    print(keys)
 
 
 if __name__ == '__main__':
