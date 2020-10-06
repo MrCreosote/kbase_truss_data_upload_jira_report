@@ -13,6 +13,7 @@ SEC_CREDS = 'Credentials'
 SEC_JIRA = 'JIRA settings'
 CFG_USERNAME = 'username'
 CFG_API_TOKEN = 'api_token'
+CFG_BOARD = 'board_id'
 
 JIRA_URL = 'https://kbase-jira.atlassian.net'
 JIRA_API_TOKEN_URL = 'https://confluence.atlassian.com/cloud/api-tokens-938839638.html'
@@ -44,6 +45,7 @@ def check_creds(username, token):
 def load_config(cfgfile):
     cfg = ConfigParser()
     cfg.read(cfgfile)
+    # TODO check config is valid - no missing keys, creds work, board ID is an int
     return cfg
 
 
@@ -57,12 +59,13 @@ def get_user_pass(cfg):
     cfg.add_section(SEC_CREDS)
     cfg.set(SEC_CREDS, '# The JIRA account username, often an email address.', None)
     cfg[SEC_CREDS][CFG_USERNAME] = username
-    cfg.set(SEC_CREDS,
-        '# An API token for the JIRA account, obtainable from ' + JIRA_API_TOKEN_URL, None)
+    cfg.set(SEC_CREDS, '# An API token for the JIRA account, obtainable from ', None)
+    cfg.set(SEC_CREDS, '# ' + JIRA_API_TOKEN_URL, None)
     cfg[SEC_CREDS][CFG_API_TOKEN] = token
 
 
-def get_board(cfg):
+# *** side effect *** adds board ID to config
+def get_jira_board(cfg):
     headers = get_auth_headers_from_config(cfg)
 
     not_complete = True
@@ -94,20 +97,15 @@ def get_board(cfg):
         raise ValueError(f'Please enter an integer between 1-{len(sorted_boards)}')
     if board_num < 1 or board_num > len(sorted_boards):
         raise ValueError(f'Please enter an integer between 1-{len(sorted_boards)}')
-    return sorted_boards[board_num - 1][1]
-
-
-def get_jira_sprint(cfg):
-    board_id = get_board(cfg)
-    print(board_id)
-
-    headers = get_auth_headers_from_config(cfg)
+    cfg.add_section(SEC_JIRA)
+    cfg.set(SEC_JIRA, '# The ID of the JIRA agile board.', None)
+    cfg[SEC_JIRA][CFG_BOARD] = str(board_num)
 
 
 def get_config(cfgfile):
     cfg = ConfigParser(allow_no_value=True)
     get_user_pass(cfg)
-    get_jira_sprint(cfg)
+    get_jira_board(cfg)
 
     with open(cfgfile, 'w') as f:
         cfg.write(f)
