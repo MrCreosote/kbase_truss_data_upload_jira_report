@@ -174,7 +174,9 @@ def get_ticket_keys(username, token, sprint_id):
 
         for item in j[RESULT_ISSUES]:
             keys.append(item[RESULT_KEY])
-    return sorted(keys)
+    # assumes all keys in sprint have the same prefix
+    # may need simple adjustment if not
+    return sorted(keys, key=lambda k: int(k.split('-')[1]))
 
 def main():
     cfgfile = Path(os.path.expanduser('~')) / CONFIG_FILE
@@ -189,6 +191,8 @@ def main():
 
     sprint_id = get_sprint_id(cfg)
     keys = get_ticket_keys(cfg[SEC_CREDS][CFG_USERNAME], cfg[SEC_CREDS][CFG_API_TOKEN], sprint_id)
+    print(f'Found {len(keys)} tickets in sprint')
+
     print(keys)
 
 
