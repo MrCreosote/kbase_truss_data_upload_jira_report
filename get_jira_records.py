@@ -17,8 +17,9 @@ CFG_BOARD = 'board_id'
 
 JIRA_URL = 'https://kbase-jira.atlassian.net'
 JIRA_API_TOKEN_URL = 'https://confluence.atlassian.com/cloud/api-tokens-938839638.html'
-JIRA_MYSELF = '/rest/api/3/myself'
-JIRA_BOARDS = '/rest/agile/1.0/board'
+JIRA_MYSELF = '/rest/api/3/myself/'
+JIRA_BOARDS = '/rest/agile/1.0/board/'
+JIRA_SPRINT_SUFFIX = '/sprint'
 QUERY_MAX_RESULTS = 'maxResults'
 QUERY_START_AT = 'startAt'
 
@@ -99,7 +100,7 @@ def get_jira_board(cfg):
         raise ValueError(f'Please enter an integer between 1-{len(sorted_boards)}')
     cfg.add_section(SEC_JIRA)
     cfg.set(SEC_JIRA, '# The ID of the JIRA agile board.', None)
-    cfg[SEC_JIRA][CFG_BOARD] = str(board_num)
+    cfg[SEC_JIRA][CFG_BOARD] = str(sorted_boards[board_num - 1][1])
 
 
 def get_config(cfgfile):
@@ -115,6 +116,43 @@ def get_config(cfgfile):
     return cfg
 
 
+def get_sprint_id(cfg):
+    board_id = int(cfg[SEC_JIRA][CFG_BOARD])
+    headers = get_auth_headers_from_config(cfg)
+
+    # similar to getting sprints above, maybe make a generic method
+    not_complete = True
+    sprints = {}
+    start_at = 0
+    while not_complete:
+        resp = requests.get(
+            f'{JIRA_URL}{JIRA_BOARDS}{board_id}{JIRA_SPRINT_SUFFIX}',
+            params={QUERY_MAX_RESULTS: MAX_RESULTS, QUERY_START_AT: start_at},
+            headers=headers)
+        if not resp.ok:
+            raise ValueError('Failed to get JIRA sprints:\n' + resp.text)
+        j = resp.json()
+        not_complete = not j['isLast']
+        start_at = start_at + MAX_RESULTS
+
+        for sprint in j['values']:
+            sprints[sprint['name']] = sprint['id']
+    sorted_sprints = [(b, sprints[b]) for b in sorted(sprints)]
+
+    print(f'Please choose a sprint:')
+    for i, (sprint, _) in enumerate(sorted_sprints):
+        print(f'{i + 1}\t{sprint}')
+    # could do a loop here, but assume the ppl using this are relatively intelligent
+    sprint_num = input('Enter sprint number: ').strip()
+    try:
+        sprint_num = int(sprint_num)
+    except ValueError:
+        raise ValueError(f'Please enter an integer between 1-{len(sorted_sprints)}')
+    if sprint_num < 1 or sprint_num > len(sorted_sprints):
+        raise ValueError(f'Please enter an integer between 1-{len(sorted_sprints)}')
+    return sorted_sprints[sprint_num - 1][1]
+
+
 def main():
     cfgfile = Path(os.path.expanduser('~')) / CONFIG_FILE
     if cfgfile.is_dir():
@@ -125,6 +163,9 @@ def main():
     else:
         print(f'No configuration file found')
         cfg = get_config(cfgfile)
+
+    sprint_id = get_sprint_id(cfg)
+    print(sprint_id)
 
 
 if __name__ == '__main__':
