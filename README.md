@@ -9,7 +9,8 @@ It's also a bit Q&D and probably fragile to API changes.
 
 # Resources
 
-[JIRA Cloud API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/)
+* [JIRA Cloud API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/)
+* [Jira Agile API](https://docs.atlassian.com/jira-software/REST/7.0.4/)
 
 # Potential improvements:
 
