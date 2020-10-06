@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# Passing the config around all over the place is pretty gross, esp considering that different
+# functions expect different parts of the config to be present.
+# If this ever becomes a tool that more than a few people use, that whole strategy should
+# be rethought as it's not very maintainable.
+
 import base64
 import getpass
 import os
@@ -22,8 +27,12 @@ JIRA_BOARDS = '/rest/agile/1.0/board/'
 JIRA_SPRINT_SUFFIX = '/sprint'
 QUERY_MAX_RESULTS = 'maxResults'
 QUERY_START_AT = 'startAt'
+RESULT_IS_LAST = 'isLast'
+RESULT_VALUES = 'values'
+RESULT_NAME = 'name'
+RESULT_ID = 'id'
 
-MAX_RESULTS = 10
+MAX_RESULTS = 10000
 
 
 def get_auth_headers(username, token):
@@ -65,42 +74,52 @@ def get_user_pass(cfg):
     cfg[SEC_CREDS][CFG_API_TOKEN] = token
 
 
-# *** side effect *** adds board ID to config
-def get_jira_board(cfg):
-    headers = get_auth_headers_from_config(cfg)
+def get_jira_selection(username, token, url, name):
+    headers = get_auth_headers(username, token)
 
     not_complete = True
-    boards = {}
+    items = {}
     start_at = 0
     while not_complete:
         resp = requests.get(
-            JIRA_URL + JIRA_BOARDS,
+            url,
             params={QUERY_MAX_RESULTS: MAX_RESULTS, QUERY_START_AT: start_at},
             headers=headers)
         if not resp.ok:
-            raise ValueError('Failed to get JIRA boards:\n' + resp.text)
+            raise ValueError(f'Failed to get {name}s:\n{resp.text}')
         j = resp.json()
-        not_complete = not j['isLast']
+        not_complete = not j[RESULT_IS_LAST]
         start_at = start_at + MAX_RESULTS
 
-        for board in j['values']:
-            boards[board['name']] = board['id']
-    sorted_boards = [(b, boards[b]) for b in sorted(boards)]
+        for item in j[RESULT_VALUES]:
+            items[item[RESULT_NAME]] = item[RESULT_ID]
+    sorted_items = [(b, items[b]) for b in sorted(items)]
     
-    print(f'Please choose a JIRA board:')
-    for i, (board, _) in enumerate(sorted_boards):
-        print(f'{i + 1}\t{board}')
+    print(f'Please choose a {name}:')
+    for i, (item, _) in enumerate(sorted_items):
+        print(f'{i + 1}\t{item}')
     # could do a loop here, but assume the ppl using this are relatively intelligent
-    board_num = input('Enter board number: ').strip()
+    item_num = input(f'Enter {name} number: ').strip()
     try:
-        board_num = int(board_num)
+        item_num = int(item_num)
     except ValueError:
-        raise ValueError(f'Please enter an integer between 1-{len(sorted_boards)}')
-    if board_num < 1 or board_num > len(sorted_boards):
-        raise ValueError(f'Please enter an integer between 1-{len(sorted_boards)}')
+        raise ValueError(f'Please enter an integer between 1-{len(sorted_items)}')
+    if item_num < 1 or item_num > len(sorted_items):
+        raise ValueError(f'Please enter an integer between 1-{len(sorted_items)}')
+    return sorted_items[item_num - 1][1]
+    
+
+# *** side effect *** adds board ID to config
+def get_jira_board(cfg):
+    board_id = get_jira_selection(
+        cfg[SEC_CREDS][CFG_USERNAME],
+        cfg[SEC_CREDS][CFG_API_TOKEN],
+        f'{JIRA_URL}{JIRA_BOARDS}',
+        'JIRA board'
+    )
     cfg.add_section(SEC_JIRA)
     cfg.set(SEC_JIRA, '# The ID of the JIRA agile board.', None)
-    cfg[SEC_JIRA][CFG_BOARD] = str(sorted_boards[board_num - 1][1])
+    cfg[SEC_JIRA][CFG_BOARD] = str(board_id)
 
 
 def get_config(cfgfile):
@@ -118,39 +137,12 @@ def get_config(cfgfile):
 
 def get_sprint_id(cfg):
     board_id = int(cfg[SEC_JIRA][CFG_BOARD])
-    headers = get_auth_headers_from_config(cfg)
 
-    # similar to getting sprints above, maybe make a generic method
-    not_complete = True
-    sprints = {}
-    start_at = 0
-    while not_complete:
-        resp = requests.get(
-            f'{JIRA_URL}{JIRA_BOARDS}{board_id}{JIRA_SPRINT_SUFFIX}',
-            params={QUERY_MAX_RESULTS: MAX_RESULTS, QUERY_START_AT: start_at},
-            headers=headers)
-        if not resp.ok:
-            raise ValueError('Failed to get JIRA sprints:\n' + resp.text)
-        j = resp.json()
-        not_complete = not j['isLast']
-        start_at = start_at + MAX_RESULTS
-
-        for sprint in j['values']:
-            sprints[sprint['name']] = sprint['id']
-    sorted_sprints = [(b, sprints[b]) for b in sorted(sprints)]
-
-    print(f'Please choose a sprint:')
-    for i, (sprint, _) in enumerate(sorted_sprints):
-        print(f'{i + 1}\t{sprint}')
-    # could do a loop here, but assume the ppl using this are relatively intelligent
-    sprint_num = input('Enter sprint number: ').strip()
-    try:
-        sprint_num = int(sprint_num)
-    except ValueError:
-        raise ValueError(f'Please enter an integer between 1-{len(sorted_sprints)}')
-    if sprint_num < 1 or sprint_num > len(sorted_sprints):
-        raise ValueError(f'Please enter an integer between 1-{len(sorted_sprints)}')
-    return sorted_sprints[sprint_num - 1][1]
+    return get_jira_selection(
+        cfg[SEC_CREDS][CFG_USERNAME],
+        cfg[SEC_CREDS][CFG_API_TOKEN],
+        f'{JIRA_URL}{JIRA_BOARDS}{board_id}{JIRA_SPRINT_SUFFIX}',
+        'sprint')
 
 
 def main():
