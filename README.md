@@ -18,3 +18,5 @@ It's also a bit Q&D and probably fragile to API changes.
 * Add tests. Since this is just a JIRA summarization tool for management reporting, if it fails
   it's not critical, so time hasn't been spent here yet.
 * Add code comments for functions. See above.
+* Better error presentation. Currently just dumps out the entire response body from JIRA.
+  See above.
