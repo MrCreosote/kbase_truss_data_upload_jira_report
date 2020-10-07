@@ -119,8 +119,8 @@ def get_jira_selection(username, token, url, name):
             raise ValueError(f'Failed to get {name}s:\n{resp.text}')
         j = resp.json()
         not_complete = not j[RESULT_IS_LAST]
-        start_at = start_at + MAX_RESULTS
-
+        start_at = start_at + len(j[RESULT_VALUES])
+        
         for item in j[RESULT_VALUES]:
             items[item[RESULT_NAME]] = item[RESULT_ID]
     sorted_items = [(b, items[b]) for b in sorted(items)]
@@ -192,7 +192,7 @@ def get_tickets(username, token, sprint_id):
         if not resp.ok:
             raise ValueError(f'Failed to get JIRA tickets:\n{resp.text}')
         j = resp.json()
-        start_at = start_at + MAX_RESULTS
+        start_at = start_at + len(j[RESULT_ISSUES])
         not_complete = j[RESULT_TOTAL] > start_at
 
         for item in j[RESULT_ISSUES]:
@@ -203,6 +203,7 @@ def get_tickets(username, token, sprint_id):
     # assumes all keys in sprint have the same prefix
     # may need simple adjustment if not
     return sorted(keys, key=lambda k: int(k[DS_KEY].split('-')[1]))
+
 
 def get_ticket_data(username, token, tickets):
     headers = get_auth_headers(username, token)
@@ -225,7 +226,7 @@ def get_ticket_data(username, token, tickets):
             if not resp.ok:
                 raise ValueError(f'Failed to get JIRA ticket:\n{resp.text}')
             j = resp.json()
-            start_at = start_at + MAX_RESULTS
+            start_at = start_at + len(j[RESULT_VALUES])
             not_complete = not j[RESULT_IS_LAST]
 
             # changes are ordered by time
