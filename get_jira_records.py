@@ -248,6 +248,26 @@ def get_ticket_data(username, token, tickets):
     return tickets2
 
 
+def print_ticket(ticket):
+    # So the JIRA servers send the timestamps in CA time (-7 GMT), so it's not 100% clear
+    # that the timezone conversion is correct since I'm in CA.
+    # I'd prefer to leave the TZ info in, but Google Sheets can't handle it, which 
+    # kind of blows my mind.
+    ip = ticket[DS_IN_PROGRESS].astimezone(tz=None) if ticket[DS_IN_PROGRESS] else None
+    done = ticket[DS_DONE].astimezone(tz=None) if ticket[DS_DONE] else None
+    
+    print(f'{ticket[DS_KEY]}\t', end='')
+    print(f'{ticket[DS_STORT_POINT_EST]}\t{ticket[DS_STORT_POINT_ACTUAL]}\t', end='')
+    if ip:
+        print(f'{ip:%Y-%m-%d %H:%M:%S}\t', end='')
+    else:
+        print('\t', end='')
+    if done:
+        print(f'{done:%Y-%m-%d %H:%M:%S}')
+    else:
+        print()
+
+
 def main():
     cfgfile = Path(os.path.expanduser('~')) / CONFIG_FILE
     if cfgfile.is_dir():
@@ -265,8 +285,10 @@ def main():
     tickets = get_tickets(username, token, sprint_id)
     print(f'Found {len(tickets)} tickets in sprint, fetching ticket history')
     tickets = get_ticket_data(username, token, tickets)
+    print()
+    print('Ticket ID\tEst. SP\t Act. SP\tIn Prog\tDone')
     for t in tickets:
-        print(t)
+        print_ticket(t)
 
 
 if __name__ == '__main__':
