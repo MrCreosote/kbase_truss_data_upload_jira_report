@@ -6,6 +6,8 @@
 # be rethought as it's not very maintainable.
 
 import base64
+import datetime
+import dateutil.parser
 import getpass
 import os
 import requests
@@ -25,7 +27,9 @@ JIRA_API_TOKEN_URL = 'https://confluence.atlassian.com/cloud/api-tokens-93883963
 JIRA_MYSELF = '/rest/api/3/myself/'
 JIRA_BOARDS = '/rest/agile/1.0/board/'
 JIRA_SEARCH = '/rest/api/3/search/'
+JIRA_ISSUE = '/rest/api/3/issue/'
 JIRA_SPRINT_SUFFIX = '/sprint'
+JIRA_CHANGELOG_SUFFIX = '/changelog'
 QUERY_MAX_RESULTS = 'maxResults'
 QUERY_START_AT = 'startAt'
 QUERY_JQL = 'jql'
@@ -36,13 +40,26 @@ RESULT_ID = 'id'
 RESULT_ISSUES = 'issues'
 RESULT_TOTAL = 'total'
 RESULT_KEY = 'key'
+RESULT_ITEMS = 'items'
+RESULT_FIELD_ID = 'fieldId'
+RESULT_CREATED = 'created'
+RESULT_TO = 'to'
 RESULT_FIELDS = 'fields'
 FLD_STORY_POINT_ACTUAL = 'customfield_11164'
 FLD_STORY_POINT_EST = 'customfield_11127'
 
+CHANGELOG_STATUS = 'status'
+CHANGELOG_INPROG_ID = '10685'
+CHANGELOG_DONE_ID = '10686'
+
 DS_KEY = 'key'
 DS_STORT_POINT_ACTUAL = 'spa'
 DS_STORT_POINT_EST = 'spe'
+DS_IN_PROGRESS = 'inprog'
+DS_DONE = 'done'
+
+DT_MAX = datetime.datetime(datetime.MAXYEAR, 12, 12, tzinfo=datetime.timezone.utc)
+DT_MIN = datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=datetime.timezone.utc)
 
 
 MAX_RESULTS = 10000
@@ -191,7 +208,43 @@ def get_ticket_data(username, token, tickets):
     headers = get_auth_headers(username, token)
     tickets2 = []
     for t in tickets:
-        pass
+        print(f'Getting history for ticket {t[DS_KEY]}')
+        # close to get_jira_selection but not enough that I want to DRY it up right now
+        # need to pass in collector for results
+        not_complete = True
+        in_prog = DT_MAX
+        done = DT_MIN
+        start_at = 0
+        while not_complete:
+            resp = requests.get(
+                f'{JIRA_URL}{JIRA_ISSUE}{t[DS_KEY]}{JIRA_CHANGELOG_SUFFIX}',
+                params={QUERY_MAX_RESULTS: MAX_RESULTS,
+                        QUERY_START_AT: start_at,
+                        },
+                headers=headers)
+            if not resp.ok:
+                raise ValueError(f'Failed to get JIRA ticket:\n{resp.text}')
+            j = resp.json()
+            start_at = start_at + MAX_RESULTS
+            not_complete = not j[RESULT_IS_LAST]
+
+            # changes are ordered by time
+            for change in j[RESULT_VALUES]:
+                created = dateutil.parser.isoparse(change[RESULT_CREATED])
+                for item in change[RESULT_ITEMS]:
+                    if item.get(RESULT_FIELD_ID) == CHANGELOG_STATUS:
+                        # something strikes me as off about this logic...
+                        if item[RESULT_TO] == CHANGELOG_INPROG_ID and created < in_prog:
+                            in_prog = created
+                        if item[RESULT_TO] == CHANGELOG_DONE_ID and created > done:
+                            done = created
+                        if item[RESULT_TO] != CHANGELOG_DONE_ID:
+                            done = DT_MIN
+        done = None if done == DT_MIN else done
+        in_prog = None if in_prog == DT_MAX else in_prog
+        t2 = {DS_IN_PROGRESS: in_prog, DS_DONE: done}
+        t2.update(t)
+        tickets2.append(t2)
     return tickets2
 
 
@@ -211,7 +264,6 @@ def main():
     sprint_id = get_sprint_id(username, token, int(cfg[SEC_JIRA][CFG_BOARD]))
     tickets = get_tickets(username, token, sprint_id)
     print(f'Found {len(tickets)} tickets in sprint, fetching ticket history')
-    print(tickets)
     tickets = get_ticket_data(username, token, tickets)
     for t in tickets:
         print(t)
